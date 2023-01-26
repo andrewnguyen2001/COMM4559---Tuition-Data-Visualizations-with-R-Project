@@ -1,0 +1,73 @@
+---
+title: "R Project"
+author: "Andrew Nguyen"
+date: "2022-11-29"
+output: html_document
+---
+
+```{r}
+# Question 4
+
+# Load in tidyverse (collection of R packages)
+library(tidyverse)
+
+# Read in Files
+netprice <- read.csv("net-price (1).csv")
+finaid <- read.csv("financial-aid (1).csv")
+gradrates <- read.csv("grad-rates (2).csv")
+costatt <- read.csv("cost-attendance (2).csv")
+institutions <- read.csv("institutions (2).csv")
+
+# Combine the datasets into one dataset
+comb1 <- full_join(netprice, finaid, by = "UnitID")
+comb2 <- full_join(comb1, gradrates, by = "UnitID")
+comb3 <- full_join(comb2, costatt, by = "UnitID")
+final <- full_join(comb3, institutions, by = "UnitID")
+
+# Create simplified graduation rates and race dataframe
+# select grad rates and all races
+grad_race_wide <- select(gradrates, 1|28:33)
+# rename races
+names(grad_race_wide) <- c("UnitID", "American Indian", "Asian", "Black", "Hispanic", "Native Hawaiian", "White")
+# View(grad_race_wide)
+
+# Change from wide to long with pivot_longer so each institution has their own row for race
+grad_race_long <- grad_race_wide %>%
+  pivot_longer(2:7,
+               names_prefix="Graduation_",
+               names_to = "Race",
+               values_to = "GraduationRate")
+# View(grad_race_long)
+
+# Create universities and historically black colleges dataframe
+institutions_hb <- select(institutions, 1|11)
+names(institutions_hb) <- c("UnitID", "HistoricallyBlackCollege")
+# View(institutions_hb)
+
+#Join graduation rates and instiutions dataframes together
+race_gr_hb <- full_join(grad_race_long, institutions_hb, by = "UnitID")
+# View(race_gr_hb)
+
+# Remove empty and null values from HBC and graduation rate, group by race and HBC, and find the average mean of graduation rate
+revised_race_gr_hb <- race_gr_hb %>%
+  filter(!is.na(HistoricallyBlackCollege)) %>%
+  group_by(Race, HistoricallyBlackCollege) %>%
+  summarize(Average_GraduationRate = mean(GraduationRate, na.rm = TRUE))
+# View(revised_race_gr_hb)
+
+# Create side-by-side bar graphs with race on horizontal axis, average graduation rate on vertical axis, and HBC on legend
+ bargraph <- ggplot(revised_race_gr_hb, aes(x= Race, y = Average_GraduationRate, fill = factor(HistoricallyBlackCollege)))
+ bargraph + geom_bar(stat="identity", position = "dodge") + 
+   labs(title = "Races' Average Graduation Rates in HBCs and Non-HBCs",
+        subtitle = "Side-By-Side Bar Graphs",
+        caption = "Data source: Tuition Tracker",
+        x = "Race",
+        y = "Average Graduation Rate (in %)",
+        fill = "Historically Black College") +
+   # changing "1" to "Yes" and "2" to "No" for HBC
+   scale_fill_discrete(breaks = c(1, 2),
+ labels = c("Yes", "No"))
+```
+
+
+
